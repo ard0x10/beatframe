@@ -110,6 +110,10 @@ enum UserEvent {
 /// changes while Windows settles is read once.
 const DISPLAY_SETTLE: Duration = Duration::from_millis(300);
 
+/// How often the light is put back above the taskbar and other always-on-top
+/// windows, for the times one rises without the foreground changing.
+const RAISE: Duration = Duration::from_secs(1);
+
 /// A monitor the light is drawn on, with its own full screen check.
 struct Lit {
     monitor: Monitor,
@@ -149,6 +153,7 @@ struct App {
     /// A window of the light changed scale and must be put back in place.
     resettle: bool,
     next_check: Instant,
+    next_raise: Instant,
     stop_at: Option<Instant>,
     shared: Arc<Shared>,
     overlay: Option<Overlay>,
@@ -535,6 +540,10 @@ impl ApplicationHandler<UserEvent> for App {
                 if self.watching_fullscreen() {
                     self.check_fullscreen(Instant::now(), event_loop);
                 }
+                // Clicking the taskbar brings it to the foreground and over the light.
+                if let Some(o) = &self.overlay {
+                    o.raise();
+                }
             }
             UserEvent::Displays => {
                 self.display_check.get_or_insert(Instant::now() + DISPLAY_SETTLE);
@@ -596,10 +605,17 @@ impl ApplicationHandler<UserEvent> for App {
         if watching && now >= self.next_check {
             self.check_fullscreen(now, event_loop);
         }
+        if self.shown && now >= self.next_raise {
+            self.next_raise = now + RAISE;
+            if let Some(o) = &self.overlay {
+                o.raise();
+            }
+        }
         let check = watching.then_some(self.next_check);
+        let raise = self.shown.then_some(self.next_raise);
         let window = self.settings_window.as_mut().and_then(|w| w.poll(now));
         let displays = self.display_check;
-        let sooner = |wake: Instant| [check, window, displays].into_iter().flatten().fold(wake, Instant::min);
+        let sooner = |wake: Instant| [check, raise, window, displays].into_iter().flatten().fold(wake, Instant::min);
         if !self.animating {
             let wake = self.stats.since + Duration::from_secs(5);
             let wake = self.stop_at.map_or(wake, |t| t.min(wake));
@@ -729,6 +745,7 @@ fn main() {
         display_check: None,
         resettle: false,
         next_check: now,
+        next_raise: now,
         stop_at,
         shared,
         overlay: None,

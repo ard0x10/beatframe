@@ -209,6 +209,14 @@ impl Overlay {
         }
     }
 
+    /// Puts the shown windows back above the other always-on-top windows. The
+    /// taskbar is one of them and rises over the light whenever it is used.
+    pub fn raise(&self) {
+        for pane in self.panes.iter().filter(|p| self.visible[p.monitor]) {
+            platform::keep_on_top(&pane.window);
+        }
+    }
+
     /// Shows the light on the monitors marked true and hides it on the rest.
     /// Returns true when a monitor was switched on: it appears with the next
     /// `draw`, so it never shows a stale frame.
@@ -283,6 +291,7 @@ impl Overlay {
         for pane in &self.panes {
             if self.waiting[pane.monitor] {
                 platform::show_without_focus(&pane.window);
+                platform::keep_on_top(&pane.window);
             }
         }
         self.waiting.iter_mut().for_each(|w| *w = false);
@@ -386,8 +395,8 @@ mod platform {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use winit::window::Window;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        GWL_EXSTYLE, GetWindowLongPtrW, SW_SHOWNOACTIVATE, SetWindowLongPtrW, ShowWindow, WS_EX_NOACTIVATE,
-        WS_EX_TOOLWINDOW,
+        GWL_EXSTYLE, GetWindowLongPtrW, HWND_TOPMOST, SW_SHOWNOACTIVATE, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+        SetWindowLongPtrW, SetWindowPos, ShowWindow, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
     };
 
     fn hwnd(window: &Window) -> windows_sys::Win32::Foundation::HWND {
@@ -411,6 +420,13 @@ mod platform {
             ShowWindow(hwnd(window), SW_SHOWNOACTIVATE);
         }
     }
+
+    /// Always-on-top windows stack by which rose last; this makes the light the last.
+    pub fn keep_on_top(window: &Window) {
+        unsafe {
+            SetWindowPos(hwnd(window), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
 }
 
 #[cfg(not(windows))]
@@ -418,6 +434,8 @@ mod platform {
     use winit::window::Window;
 
     pub fn never_take_focus(_window: &Window) {}
+
+    pub fn keep_on_top(_window: &Window) {}
 
     pub fn show_without_focus(window: &Window) {
         window.set_visible(true);
