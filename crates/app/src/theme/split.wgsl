@@ -3,7 +3,7 @@
 // meet in a corner their light adds up.
 //
 // params[0] = (kick, snare, hat, energy)
-// params[1].x = 1 keeps a faint line on a quiet edge, 0 lets it go dark
+// The resting glow keeps a faint line on a quiet edge; at 0 it goes dark.
 
 // Light along one edge, `dist` pixels away from it, for a drum at `hit`.
 fn band(dist: f32, unit: f32, hit: f32, rest: f32) -> f32 {
@@ -18,7 +18,7 @@ fn light(e: Edge) -> Light {
     let snare = u.params[0].y;
     let hat = u.params[0].z;
     let energy = u.params[0].w;
-    let rest = u.params[1].x * (0.2 + 0.1 * energy);
+    let rest = u.resting * (0.2 + 0.1 * energy);
 
     let top = e.p.y;
     let bottom = u.screen.y - e.p.y;
@@ -34,5 +34,5 @@ fn light(e: Edge) -> Light {
 
     let hat_color = mix(u.accent.rgb, vec3f(1.0), 0.3);
     let tint = u.base.rgb * low + u.accent.rgb * sides + hat_color * high;
-    return Light(tint, low + sides + high);
+    return Light(tint, low + sides + high, PEAK);
 }

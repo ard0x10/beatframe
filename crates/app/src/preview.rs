@@ -4,7 +4,7 @@
 use std::time::Instant;
 
 use crate::overlay::{self, Uniforms};
-use crate::settings::Settings;
+use crate::settings::{Look, Settings};
 use crate::signal::Snapshot;
 use crate::theme::{self, Params, Theme};
 
@@ -84,6 +84,11 @@ impl Preview {
     /// Stops the beat where it is; the next `step` carries on from there.
     pub fn pause(&mut self) {
         self.last = None;
+    }
+
+    /// The chosen theme's thickness, brightness and resting glow, as last followed.
+    pub fn look(&self) -> &Look {
+        self.theme.look()
     }
 
     pub fn seconds(&self) -> f32 {

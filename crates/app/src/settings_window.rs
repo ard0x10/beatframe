@@ -14,7 +14,7 @@ use crate::icon;
 use crate::monitors::{self, Monitor};
 use crate::overlay::Uniforms;
 use crate::preview::{self, Preview};
-use crate::settings::{self, QuietEdge, Settings};
+use crate::settings::{self, Settings};
 use crate::tray;
 use crate::Palette;
 
@@ -362,16 +362,18 @@ fn hint(ui: &mut Ui, text: &str) {
     ui.label(RichText::new(text).small().weak());
 }
 
-const THEMES: [(&str, &str, &str); 3] = [
+const THEMES: [(&str, &str, &str); 5] = [
     ("layered", "Layered", "Every drum lights the whole edge, in layers."),
     ("split", "Split", "Kick lights the bottom, snare the sides, hi-hat the top."),
     ("ripple", "Ripple", "Each kick sends a wave up from the bottom middle."),
+    ("aurora", "Aurora", "A slow curtain of light flows along the frame. The drums only nudge it."),
+    ("band", "Band", "A thick band blending the two colors, which the music turns round the frame."),
 ];
 
 fn look(ui: &mut Ui, view: &mut View, s: &mut Settings) {
     screen(ui, view, s);
     heading(ui, "Theme");
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         for (name, label, _) in THEMES {
             ui.radio_value(&mut s.theme, name.to_string(), label);
         }
@@ -379,26 +381,7 @@ fn look(ui: &mut Ui, view: &mut View, s: &mut Settings) {
     if let Some((_, _, about)) = THEMES.iter().find(|(n, ..)| *n == s.theme) {
         hint(ui, about);
     }
-    match s.theme.as_str() {
-        "split" => {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label("Quiet edge");
-                ui.radio_value(&mut s.split.quiet_edge, QuietEdge::Dim, "Dim");
-                ui.radio_value(&mut s.split.quiet_edge, QuietEdge::Off, "Off");
-            });
-            hint(ui, "What an edge does while its drum is silent.");
-        }
-        "ripple" => {
-            ui.add_space(4.0);
-            let r = &mut s.ripple;
-            ui.add(Slider::new(&mut r.wave_seconds, 0.3..=2.0).step_by(0.05).suffix(" s").text("Wave time"));
-            ui.add(Slider::new(&mut r.tail, 0.2..=3.0).step_by(0.05).text("Tail"));
-            ui.add(Slider::new(&mut r.sparks, 0.0..=2.0).step_by(0.05).text("Sparks"));
-            hint(ui, "Wave time is how long a wave takes to reach the top. Sparks at 0 turns them off.");
-        }
-        _ => {}
-    }
+    theme_settings(ui, s);
 
     heading(ui, "Colors");
     ui.horizontal(|ui| {
@@ -408,8 +391,80 @@ fn look(ui: &mut Ui, view: &mut View, s: &mut Settings) {
             ui.add_space(6.0);
         }
     });
+    ui.horizontal(|ui| {
+        ui.radio_value(&mut s.palette, settings::CUSTOM.to_string(), "Custom");
+        let base = egui::color_picker::color_edit_button_srgb(ui, &mut s.custom_base).changed();
+        let accent = egui::color_picker::color_edit_button_srgb(ui, &mut s.custom_accent).changed();
+        // Picking a color means using it.
+        if base || accent {
+            s.palette = settings::CUSTOM.to_string();
+        }
+    });
+    hint(ui, "Custom: the first color lights the rim and the kick, the second the snare and the hi-hat.");
     ui.checkbox(&mut s.album_colors, "Colors from the album cover");
     hint(ui, "Follows the cover of the music playing. Other sound keeps the palette.");
+}
+
+/// The chosen theme's own values: what every theme has, then what only it has.
+fn theme_settings(ui: &mut Ui, s: &mut Settings) {
+    let theme = s.theme.clone();
+    let label = THEMES.iter().find(|(n, ..)| *n == theme).map_or("Theme", |(_, l, _)| *l);
+    let mut defaults = s.clone();
+    defaults.reset_theme(&theme);
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        ui.heading(format!("{label} settings"));
+        if ui.add_enabled(defaults != *s, Button::new("Reset")).clicked() {
+            s.reset_theme(&theme);
+        }
+    });
+
+    let slider = |ui: &mut Ui, name: &str, value: &mut f32, range: std::ops::RangeInclusive<f32>| {
+        ui.label(name);
+        ui.add(Slider::new(value, range).step_by(0.05));
+        ui.end_row();
+    };
+    egui::Grid::new("theme settings").num_columns(2).spacing(egui::vec2(12.0, 7.0)).show(ui, |ui| {
+        let l = s.look_mut(&theme);
+        slider(ui, "Thickness", &mut l.thickness, 0.5..=2.0);
+        slider(ui, "Brightness", &mut l.brightness, 0.2..=2.0);
+        for (drum, name) in l.drums.iter_mut().zip(["Kick", "Snare", "Hi-hat"]) {
+            ui.checkbox(&mut drum.on, name);
+            ui.add_enabled(drum.on, Slider::new(&mut drum.strength, 0.0..=2.0).step_by(0.05));
+            ui.end_row();
+        }
+        slider(ui, "Fade", &mut l.fade, 0.3..=3.0);
+        slider(ui, "Resting glow", &mut l.resting, 0.0..=2.0);
+
+        match theme.as_str() {
+            "layered" => slider(ui, "Shimmer", &mut s.layered.shimmer, 0.0..=2.0),
+            "ripple" => {
+                let r = &mut s.ripple;
+                ui.label("Wave time");
+                ui.add(Slider::new(&mut r.wave_seconds, 0.3..=2.0).step_by(0.05).suffix(" s"));
+                ui.end_row();
+                slider(ui, "Tail", &mut r.tail, 0.2..=3.0);
+                slider(ui, "Sparks", &mut r.sparks, 0.0..=2.0);
+            }
+            "aurora" => {
+                slider(ui, "Flow", &mut s.aurora.flow, 0.2..=3.0);
+                slider(ui, "Folds", &mut s.aurora.folds, 0.5..=2.0);
+            }
+            "band" => {
+                slider(ui, "Spin", &mut s.band.spin, 0.0..=3.0);
+                slider(ui, "Waves", &mut s.band.waves, 0.0..=2.0);
+                slider(ui, "Corners", &mut s.band.corners, 0.0..=1.0);
+            }
+            _ => {}
+        }
+    });
+    hint(ui, "Thickness takes effect when you let go of the slider. A shorter fade is sharper.");
+    hint(ui, "Resting glow is the light between hits; at 0 only the hits show.");
+    match theme.as_str() {
+        "ripple" => hint(ui, "Wave time is how long a wave takes to reach the top. Sparks at 0 turns them off."),
+        "band" => hint(ui, "Spin is how fast the colors go round with the music; at 0 they stay put. Corners at 0 are square."),
+        _ => {}
+    }
 }
 
 /// The preview's frame time, 30 fps whatever the light runs at: each frame
@@ -444,9 +499,12 @@ fn screen(ui: &mut Ui, view: &mut View, s: &Settings) {
         base: view.colors.base,
         accent: view.colors.accent,
         time: view.preview.seconds(),
-        _pad: [0.0; 3],
+        thickness: 1.0,
+        brightness: 1.0,
+        resting: 1.0,
         params,
-    };
+    }
+    .with_look(view.preview.look());
     painter.add(egui_wgpu::Callback::new_paint_callback(inner, preview::Paint { source, uniforms }));
 }
 

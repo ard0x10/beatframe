@@ -10,6 +10,9 @@ use crate::theme;
 
 pub const PALETTE_NAMES: [&str; 3] = ["jade", "ice", "violet"];
 
+/// The palette made of the two colors the user picked.
+pub const CUSTOM: &str = "custom";
+
 pub const DEFAULT_TOGGLE_KEY: &str = "ctrl+alt+shift+l";
 
 /// Reads a key combination such as "ctrl+alt+shift+l". "win" names the Windows
@@ -25,7 +28,7 @@ pub fn parse_key(text: &str) -> Option<global_hotkey::hotkey::HotKey> {
     tokens.join("+").parse().ok()
 }
 
-const TEMPLATE: &str = r#"# BeatFrame settings. Changes apply as soon as this file is saved.
+const TEMPLATE: &str = r##"# BeatFrame settings. Changes apply as soon as this file is saved.
 
 # Whether the light is on; the tray icon's On switch writes it here, so it is remembered
 enabled = true
@@ -36,11 +39,15 @@ toggle_key = "ctrl+alt+shift+l"
 # Start when you sign in to Windows
 start_with_windows = false
 
-# How the light moves: layered, split or ripple
+# How the light moves: layered, split, ripple, aurora or band
 theme = "layered"
 
-# Colors: jade, ice or violet
+# Colors: jade, ice, violet, or custom for the two colors below
 palette = "jade"
+
+# The custom colors as #rrggbb: the first for the rim and the kick, the second for the snare and the hi-hat
+custom_base = "#10b8a0"
+custom_accent = "#6c8cff"
 
 # Take the colors from the cover of the music playing; other sound keeps the palette
 album_colors = false
@@ -59,36 +66,164 @@ monitors = ["primary"]
 # Only the monitor that is covered goes dark.
 pause_on_fullscreen = false
 
+# Each theme keeps its own values in its own table. Every theme has these:
+#   thickness        how deep the light reaches into the screen, 0.5 to 2.0
+#   brightness       how bright it gets, 0.2 to 2.0
+#   kick, snare, hat whether the theme answers that drum
+#   kick_strength, snare_strength, hat_strength
+#                    how strongly it answers, 0 to 2
+#   fade             how long a hit takes to fade, 0.3 to 3.0; smaller is sharper
+#   resting          the glow between hits, 0 to 2; 0 leaves only the hits
+
+[layered]
+thickness = 1.0
+brightness = 1.0
+kick = true
+snare = true
+hat = true
+kick_strength = 1.0
+snare_strength = 1.0
+hat_strength = 1.0
+fade = 1.0
+resting = 1.0
+# How much the hi-hat shimmers along the outermost line, 0 to 2
+shimmer = 1.0
+
 [split]
-# What an edge does while its drum is quiet: "dim" keeps a faint line, "off" goes dark
-quiet_edge = "dim"
+thickness = 1.0
+brightness = 1.0
+kick = true
+snare = true
+hat = true
+kick_strength = 1.0
+snare_strength = 1.0
+hat_strength = 1.0
+fade = 1.0
+resting = 1.0
 
 [ripple]
+thickness = 1.0
+brightness = 1.0
+kick = true
+snare = true
+hat = true
+kick_strength = 1.0
+snare_strength = 1.0
+hat_strength = 1.0
+fade = 1.0
+resting = 1.0
 # Seconds a wave takes to reach the top, 0.3 to 2.0; smaller is faster
 wave_seconds = 0.8
 # Length of the trail behind each wave, 0.2 to 3.0; 1.0 is the default length
 tail = 1.0
 # How many sparks the hi-hat throws, 0 to 2; 0 turns them off
 sparks = 1.0
-"#;
 
-/// What a Split edge does while its drum is quiet.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum QuietEdge {
-    Dim,
-    Off,
+[aurora]
+thickness = 1.0
+brightness = 1.0
+kick = true
+snare = true
+hat = true
+kick_strength = 1.0
+snare_strength = 1.0
+hat_strength = 1.0
+fade = 1.0
+resting = 1.0
+# How fast the curtain flows, 0.2 to 3.0
+flow = 1.0
+# How many folds the curtain has along an edge, 0.5 to 2.0
+folds = 1.0
+
+[band]
+thickness = 1.0
+brightness = 1.0
+kick = true
+snare = true
+hat = true
+kick_strength = 1.0
+snare_strength = 1.0
+hat_strength = 1.0
+fade = 1.0
+resting = 1.0
+# How fast the colors go round the frame, 0 to 3; 0 keeps them still
+spin = 1.0
+# How much the inner edge of the band waves, 0 to 2; 0 keeps it straight
+waves = 1.0
+# How round the corners are, 0 to 1; 0 is square, 1 the roundest
+corners = 0.35
+"##;
+
+/// The drums in the order every theme lists them.
+pub const DRUMS: [&str; 3] = ["kick", "snare", "hat"];
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Drum {
+    /// Whether the theme answers this drum at all.
+    pub on: bool,
+    /// How strongly, as a factor on the hit's own strength.
+    pub strength: f32,
+}
+
+/// What every theme lets the user shape. Each theme keeps its own.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Look {
+    /// Factor on how deep the light reaches.
+    pub thickness: f32,
+    /// Factor on how much light there is, under the same peak cap.
+    pub brightness: f32,
+    /// Kick, snare and hi-hat.
+    pub drums: [Drum; 3],
+    /// Factor on how long a hit takes to fade.
+    pub fade: f32,
+    /// Factor on the glow between hits; 0 leaves only the hits.
+    pub resting: f32,
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Look {
+            thickness: 1.0,
+            brightness: 1.0,
+            drums: [Drum { on: true, strength: 1.0 }; 3],
+            fade: 1.0,
+            resting: 1.0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LayeredSettings {
+    pub look: Look,
+    pub shimmer: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SplitSettings {
-    pub quiet_edge: QuietEdge,
+    pub look: Look,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RippleSettings {
+    pub look: Look,
     pub wave_seconds: f32,
     pub tail: f32,
     pub sparks: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuroraSettings {
+    pub look: Look,
+    pub flow: f32,
+    pub folds: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BandSettings {
+    pub look: Look,
+    pub spin: f32,
+    pub waves: f32,
+    pub corners: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,13 +233,18 @@ pub struct Settings {
     pub start_with_windows: bool,
     pub theme: String,
     pub palette: String,
+    pub custom_base: [u8; 3],
+    pub custom_accent: [u8; 3],
     pub album_colors: bool,
     pub fps: u32,
     pub layout: Layout,
     pub monitors: Vec<String>,
     pub pause_on_fullscreen: bool,
+    pub layered: LayeredSettings,
     pub split: SplitSettings,
     pub ripple: RippleSettings,
+    pub aurora: AuroraSettings,
+    pub band: BandSettings,
 }
 
 impl Default for Settings {
@@ -115,15 +255,82 @@ impl Default for Settings {
             start_with_windows: false,
             theme: "layered".into(),
             palette: "jade".into(),
+            custom_base: [0x10, 0xb8, 0xa0],
+            custom_accent: [0x6c, 0x8c, 0xff],
             album_colors: false,
             fps: 60,
             layout: Layout::Strips,
             monitors: vec![PRIMARY.into()],
             pause_on_fullscreen: false,
-            split: SplitSettings { quiet_edge: QuietEdge::Dim },
-            ripple: RippleSettings { wave_seconds: 0.8, tail: 1.0, sparks: 1.0 },
+            layered: LayeredSettings { look: Look::default(), shimmer: 1.0 },
+            split: SplitSettings { look: Look::default() },
+            ripple: RippleSettings { look: Look::default(), wave_seconds: 0.8, tail: 1.0, sparks: 1.0 },
+            aurora: AuroraSettings { look: Look::default(), flow: 1.0, folds: 1.0 },
+            band: BandSettings { look: Look::default(), spin: 1.0, waves: 1.0, corners: 0.35 },
         }
     }
+}
+
+impl Settings {
+    /// The named theme's own look; an unknown name gets Layered's.
+    #[cfg(test)]
+    pub fn look(&self, theme: &str) -> &Look {
+        match theme {
+            "split" => &self.split.look,
+            "ripple" => &self.ripple.look,
+            "aurora" => &self.aurora.look,
+            "band" => &self.band.look,
+            _ => &self.layered.look,
+        }
+    }
+
+    /// The named theme's own look to change; an unknown name gets Layered's.
+    pub fn look_mut(&mut self, theme: &str) -> &mut Look {
+        match theme {
+            "split" => &mut self.split.look,
+            "ripple" => &mut self.ripple.look,
+            "aurora" => &mut self.aurora.look,
+            "band" => &mut self.band.look,
+            _ => &mut self.layered.look,
+        }
+    }
+
+    /// Puts the named theme's values, and only those, back to their defaults.
+    pub fn reset_theme(&mut self, theme: &str) {
+        let d = Settings::default();
+        match theme {
+            "layered" => self.layered = d.layered,
+            "split" => self.split = d.split,
+            "ripple" => self.ripple = d.ripple,
+            "aurora" => self.aurora = d.aurora,
+            "band" => self.band = d.band,
+            _ => {}
+        }
+    }
+
+    fn looks(&self) -> [(&'static str, &Look); 5] {
+        [
+            ("layered", &self.layered.look),
+            ("split", &self.split.look),
+            ("ripple", &self.ripple.look),
+            ("aurora", &self.aurora.look),
+            ("band", &self.band.look),
+        ]
+    }
+}
+
+/// "#10b8a0" as its three channels.
+pub fn parse_color(text: &str) -> Option<[u8; 3]> {
+    let hex = text.trim().strip_prefix('#')?;
+    if hex.len() != 6 || !hex.is_ascii() {
+        return None;
+    }
+    let channel = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+    Some([channel(0)?, channel(2)?, channel(4)?])
+}
+
+pub fn color_text(c: [u8; 3]) -> String {
+    format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2])
 }
 
 /// What the file may contain; anything missing keeps its default.
@@ -135,27 +342,81 @@ struct File {
     start_with_windows: Option<bool>,
     theme: Option<String>,
     palette: Option<String>,
+    custom_base: Option<String>,
+    custom_accent: Option<String>,
     album_colors: Option<bool>,
     fps: Option<u32>,
     layout: Option<String>,
     monitors: Option<Vec<String>>,
     pause_on_fullscreen: Option<bool>,
-    split: Option<SplitFile>,
-    ripple: Option<RippleFile>,
+    layered: Option<ThemeFile>,
+    split: Option<ThemeFile>,
+    ripple: Option<ThemeFile>,
+    aurora: Option<ThemeFile>,
+    band: Option<ThemeFile>,
 }
 
+/// One theme's table. Every key any theme has is known here, so a key meant
+/// for another theme is reported by name instead of failing the whole file.
 #[derive(Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
-struct RippleFile {
+struct ThemeFile {
+    thickness: Option<f32>,
+    brightness: Option<f32>,
+    kick: Option<bool>,
+    snare: Option<bool>,
+    hat: Option<bool>,
+    kick_strength: Option<f32>,
+    snare_strength: Option<f32>,
+    hat_strength: Option<f32>,
+    fade: Option<f32>,
+    resting: Option<f32>,
+    shimmer: Option<f32>,
+    /// Split's older switch for the glow between hits: "off" reads as no resting glow.
+    quiet_edge: Option<String>,
     wave_seconds: Option<f32>,
     tail: Option<f32>,
     sparks: Option<f32>,
+    flow: Option<f32>,
+    folds: Option<f32>,
+    spin: Option<f32>,
+    waves: Option<f32>,
+    corners: Option<f32>,
 }
 
-#[derive(Deserialize, Default)]
-#[serde(default, deny_unknown_fields)]
-struct SplitFile {
-    quiet_edge: Option<String>,
+impl ThemeFile {
+    /// Reads the keys every theme has into `look`, and reports the theme keys
+    /// that `theme` has none of.
+    fn apply_look(&self, theme: &str, own: &[&str], look: &mut Look) {
+        in_range(theme, "thickness", self.thickness, 0.5, 2.0, &mut look.thickness);
+        in_range(theme, "brightness", self.brightness, 0.2, 2.0, &mut look.brightness);
+        let drums = [(self.kick, self.kick_strength), (self.snare, self.snare_strength), (self.hat, self.hat_strength)];
+        for (i, (on, strength)) in drums.into_iter().enumerate() {
+            if let Some(on) = on {
+                look.drums[i].on = on;
+            }
+            let key = ["kick_strength", "snare_strength", "hat_strength"][i];
+            in_range(theme, key, strength, 0.0, 2.0, &mut look.drums[i].strength);
+        }
+        in_range(theme, "fade", self.fade, 0.3, 3.0, &mut look.fade);
+        in_range(theme, "resting", self.resting, 0.0, 2.0, &mut look.resting);
+
+        let given = [
+            ("shimmer", self.shimmer.is_some()),
+            ("quiet_edge", self.quiet_edge.is_some()),
+            ("wave_seconds", self.wave_seconds.is_some()),
+            ("tail", self.tail.is_some()),
+            ("sparks", self.sparks.is_some()),
+            ("flow", self.flow.is_some()),
+            ("folds", self.folds.is_some()),
+            ("spin", self.spin.is_some()),
+            ("waves", self.waves.is_some()),
+            ("corners", self.corners.is_some()),
+        ];
+        for (key, _) in given.iter().filter(|(key, set)| *set && !own.contains(key)) {
+            eprintln!("settings: {theme} has no {key}, it belongs to another theme");
+        }
+    }
 }
 
 /// Command line values win over the file for this run only.
@@ -247,10 +508,18 @@ fn apply(s: &mut Settings, f: File) {
         }
     }
     if let Some(p) = f.palette {
-        if PALETTE_NAMES.contains(&p.as_str()) {
+        if PALETTE_NAMES.contains(&p.as_str()) || p == CUSTOM {
             s.palette = p;
         } else {
-            eprintln!("settings: palette \"{p}\" unknown, use one of {}", PALETTE_NAMES.join(", "));
+            eprintln!("settings: palette \"{p}\" unknown, use one of {} or {CUSTOM}", PALETTE_NAMES.join(", "));
+        }
+    }
+    for (key, text, into) in [("custom_base", f.custom_base, &mut s.custom_base), ("custom_accent", f.custom_accent, &mut s.custom_accent)] {
+        if let Some(text) = text {
+            match parse_color(&text) {
+                Some(c) => *into = c,
+                None => eprintln!("settings: {key} \"{text}\" is not a color, like \"#10b8a0\""),
+            }
         }
     }
     if let Some(a) = f.album_colors {
@@ -286,25 +555,47 @@ fn apply(s: &mut Settings, f: File) {
     if let Some(p) = f.pause_on_fullscreen {
         s.pause_on_fullscreen = p;
     }
-    if let Some(q) = f.split.and_then(|t| t.quiet_edge) {
-        match q.as_str() {
-            "dim" => s.split.quiet_edge = QuietEdge::Dim,
-            "off" => s.split.quiet_edge = QuietEdge::Off,
-            _ => eprintln!("settings: split quiet_edge \"{q}\" unknown, use dim or off"),
+    if let Some(t) = f.layered {
+        let l = &mut s.layered;
+        t.apply_look("layered", &["shimmer"], &mut l.look);
+        in_range("layered", "shimmer", t.shimmer, 0.0, 2.0, &mut l.shimmer);
+    }
+    if let Some(t) = f.split {
+        let l = &mut s.split;
+        t.apply_look("split", &["quiet_edge"], &mut l.look);
+        match t.quiet_edge.as_deref() {
+            // An explicit resting value wins over the older switch.
+            Some("off") if t.resting.is_none() => l.look.resting = 0.0,
+            Some("off" | "dim") | None => {}
+            Some(q) => eprintln!("settings: split quiet_edge \"{q}\" unknown, use resting = 0 to 2 instead"),
         }
     }
-    if let Some(r) = f.ripple {
-        let s = &mut s.ripple;
-        in_range("ripple wave_seconds", r.wave_seconds, 0.3, 2.0, &mut s.wave_seconds);
-        in_range("ripple tail", r.tail, 0.2, 3.0, &mut s.tail);
-        in_range("ripple sparks", r.sparks, 0.0, 2.0, &mut s.sparks);
+    if let Some(t) = f.ripple {
+        let r = &mut s.ripple;
+        t.apply_look("ripple", &["wave_seconds", "tail", "sparks"], &mut r.look);
+        in_range("ripple", "wave_seconds", t.wave_seconds, 0.3, 2.0, &mut r.wave_seconds);
+        in_range("ripple", "tail", t.tail, 0.2, 3.0, &mut r.tail);
+        in_range("ripple", "sparks", t.sparks, 0.0, 2.0, &mut r.sparks);
+    }
+    if let Some(t) = f.aurora {
+        let a = &mut s.aurora;
+        t.apply_look("aurora", &["flow", "folds"], &mut a.look);
+        in_range("aurora", "flow", t.flow, 0.2, 3.0, &mut a.flow);
+        in_range("aurora", "folds", t.folds, 0.5, 2.0, &mut a.folds);
+    }
+    if let Some(t) = f.band {
+        let b = &mut s.band;
+        t.apply_look("band", &["spin", "waves", "corners"], &mut b.look);
+        in_range("band", "spin", t.spin, 0.0, 3.0, &mut b.spin);
+        in_range("band", "waves", t.waves, 0.0, 2.0, &mut b.waves);
+        in_range("band", "corners", t.corners, 0.0, 1.0, &mut b.corners);
     }
 }
 
-fn in_range(name: &str, value: Option<f32>, min: f32, max: f32, into: &mut f32) {
+fn in_range(table: &str, key: &str, value: Option<f32>, min: f32, max: f32, into: &mut f32) {
     match value {
         Some(v) if (min..=max).contains(&v) => *into = v,
-        Some(v) => eprintln!("settings: {name} {v} out of range {min} to {max}"),
+        Some(v) => eprintln!("settings: {table} {key} {v} out of range {min} to {max}"),
         None => {}
     }
 }
@@ -316,28 +607,51 @@ pub type Change = (Option<&'static str>, &'static str, String);
 /// The file lines that turn `old` into `new`, one per value that differs.
 pub fn changes(old: &Settings, new: &Settings) -> Vec<Change> {
     let text = |s: &str| toml::Value::String(s.to_string()).to_string();
-    let quiet = |q: QuietEdge| text(if q == QuietEdge::Dim { "dim" } else { "off" });
     let layout = |l: Layout| text(if l == Layout::Strips { "strips" } else { "full" });
     let float = |v: f32| format!("{v:?}");
     let list = |names: &[String]| toml::Value::Array(names.iter().map(|n| toml::Value::String(n.clone())).collect()).to_string();
     let (o, n) = (old, new);
-    let all: [(bool, Option<&'static str>, &'static str, String); 14] = [
-        (o.enabled != n.enabled, None, "enabled", n.enabled.to_string()),
-        (o.toggle_key != n.toggle_key, None, "toggle_key", text(&n.toggle_key)),
-        (o.start_with_windows != n.start_with_windows, None, "start_with_windows", n.start_with_windows.to_string()),
-        (o.theme != n.theme, None, "theme", text(&n.theme)),
-        (o.palette != n.palette, None, "palette", text(&n.palette)),
-        (o.album_colors != n.album_colors, None, "album_colors", n.album_colors.to_string()),
-        (o.fps != n.fps, None, "fps", n.fps.to_string()),
-        (o.layout != n.layout, None, "layout", layout(n.layout)),
-        (o.monitors != n.monitors, None, "monitors", list(&n.monitors)),
-        (o.pause_on_fullscreen != n.pause_on_fullscreen, None, "pause_on_fullscreen", n.pause_on_fullscreen.to_string()),
-        (o.split.quiet_edge != n.split.quiet_edge, Some("split"), "quiet_edge", quiet(n.split.quiet_edge)),
-        (o.ripple.wave_seconds != n.ripple.wave_seconds, Some("ripple"), "wave_seconds", float(n.ripple.wave_seconds)),
-        (o.ripple.tail != n.ripple.tail, Some("ripple"), "tail", float(n.ripple.tail)),
-        (o.ripple.sparks != n.ripple.sparks, Some("ripple"), "sparks", float(n.ripple.sparks)),
-    ];
-    all.into_iter().filter(|c| c.0).map(|(_, table, key, value)| (table, key, value)).collect()
+    let mut out = Vec::new();
+    let mut put = |differs: bool, table: Option<&'static str>, key: &'static str, value: String| {
+        if differs {
+            out.push((table, key, value));
+        }
+    };
+    put(o.enabled != n.enabled, None, "enabled", n.enabled.to_string());
+    put(o.toggle_key != n.toggle_key, None, "toggle_key", text(&n.toggle_key));
+    put(o.start_with_windows != n.start_with_windows, None, "start_with_windows", n.start_with_windows.to_string());
+    put(o.theme != n.theme, None, "theme", text(&n.theme));
+    put(o.palette != n.palette, None, "palette", text(&n.palette));
+    put(o.custom_base != n.custom_base, None, "custom_base", text(&color_text(n.custom_base)));
+    put(o.custom_accent != n.custom_accent, None, "custom_accent", text(&color_text(n.custom_accent)));
+    put(o.album_colors != n.album_colors, None, "album_colors", n.album_colors.to_string());
+    put(o.fps != n.fps, None, "fps", n.fps.to_string());
+    put(o.layout != n.layout, None, "layout", layout(n.layout));
+    put(o.monitors != n.monitors, None, "monitors", list(&n.monitors));
+    put(o.pause_on_fullscreen != n.pause_on_fullscreen, None, "pause_on_fullscreen", n.pause_on_fullscreen.to_string());
+
+    for ((table, a), (_, b)) in o.looks().into_iter().zip(n.looks()) {
+        let t = Some(table);
+        put(a.thickness != b.thickness, t, "thickness", float(b.thickness));
+        put(a.brightness != b.brightness, t, "brightness", float(b.brightness));
+        for i in 0..3 {
+            put(a.drums[i].on != b.drums[i].on, t, DRUMS[i], b.drums[i].on.to_string());
+            let key = ["kick_strength", "snare_strength", "hat_strength"][i];
+            put(a.drums[i].strength != b.drums[i].strength, t, key, float(b.drums[i].strength));
+        }
+        put(a.fade != b.fade, t, "fade", float(b.fade));
+        put(a.resting != b.resting, t, "resting", float(b.resting));
+    }
+    put(o.layered.shimmer != n.layered.shimmer, Some("layered"), "shimmer", float(n.layered.shimmer));
+    put(o.ripple.wave_seconds != n.ripple.wave_seconds, Some("ripple"), "wave_seconds", float(n.ripple.wave_seconds));
+    put(o.ripple.tail != n.ripple.tail, Some("ripple"), "tail", float(n.ripple.tail));
+    put(o.ripple.sparks != n.ripple.sparks, Some("ripple"), "sparks", float(n.ripple.sparks));
+    put(o.aurora.flow != n.aurora.flow, Some("aurora"), "flow", float(n.aurora.flow));
+    put(o.aurora.folds != n.aurora.folds, Some("aurora"), "folds", float(n.aurora.folds));
+    put(o.band.spin != n.band.spin, Some("band"), "spin", float(n.band.spin));
+    put(o.band.waves != n.band.waves, Some("band"), "waves", float(n.band.waves));
+    put(o.band.corners != n.band.corners, Some("band"), "corners", float(n.band.corners));
+    out
 }
 
 /// Records `changes` in the file, changing only their own lines so the user's
@@ -455,6 +769,17 @@ mod tests {
         assert_eq!(parse(TEMPLATE), Settings::default());
     }
 
+    /// The template lists every theme, and each one has a table there.
+    #[test]
+    fn the_template_has_a_table_for_every_theme() {
+        let table: toml::Table = toml::from_str(TEMPLATE).unwrap();
+        let listed = TEMPLATE.lines().find(|l| l.starts_with("# How the light moves:")).expect("the theme comment");
+        for name in theme::NAMES {
+            assert!(table.get(name).is_some_and(|t| t.is_table()), "no [{name}] in the template");
+            assert!(listed.contains(name), "{name} is not named in \"{listed}\"");
+        }
+    }
+
     #[test]
     fn bad_values_keep_defaults_and_good_ones_apply() {
         let s = parse("palette = \"pink\"\nfps = 5\nlayout = \"full\"\n");
@@ -463,9 +788,6 @@ mod tests {
         assert_eq!(s, Settings { palette: "violet".into(), fps: 30, ..Settings::default() });
         let s = parse("theme = \"none\"\n");
         assert_eq!(s, Settings::default());
-        let s = parse("theme = \"split\"\n[split]\nquiet_edge = \"off\"\n");
-        assert_eq!(s.theme, "split");
-        assert_eq!(s.split.quiet_edge, QuietEdge::Off);
         let s = parse("enabled = false\nstart_with_windows = true\n");
         assert_eq!(s, Settings { enabled: false, start_with_windows: true, ..Settings::default() });
         let s = parse("toggle_key = \"\"\n");
@@ -483,13 +805,63 @@ mod tests {
         let s = parse("pause_on_fullscreen = true\n");
         assert_eq!(s, Settings { pause_on_fullscreen: true, ..Settings::default() });
         let s = parse("[ripple]\nwave_seconds = 1.5\ntail = 9.0\nsparks = 0\n");
-        assert_eq!(s.ripple, RippleSettings { wave_seconds: 1.5, tail: 1.0, sparks: 0.0 });
+        assert_eq!((s.ripple.wave_seconds, s.ripple.tail, s.ripple.sparks), (1.5, 1.0, 0.0));
+        let s = parse("palette = \"custom\"\ncustom_base = \"#FF0080\"\ncustom_accent = \"blue\"\n");
+        assert_eq!((s.palette.as_str(), s.custom_base), ("custom", [0xff, 0x00, 0x80]));
+        assert_eq!(s.custom_accent, Settings::default().custom_accent);
+        for bad in ["", "#12345", "#1234567", "123456", "#gg0000", "#ééé"] {
+            assert_eq!(parse_color(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_theme_keeps_its_own_values() {
+        let s = parse("[band]\nthickness = 1.8\nhat = false\nsnare_strength = 0.4\n[aurora]\nthickness = 9\nflow = 5\n");
+        assert_eq!(s.band.look.thickness, 1.8);
+        assert!(!s.band.look.drums[2].on);
+        assert_eq!(s.band.look.drums[1].strength, 0.4);
+        // The other themes keep theirs.
+        assert_eq!(s.layered, Settings::default().layered);
+        assert_eq!(s.aurora, Settings::default().aurora, "out of range values keep the default");
+        // A key another theme owns is reported and does nothing.
+        let s = parse("[layered]\ntail = 2.0\n");
+        assert_eq!(s, Settings::default());
+    }
+
+    /// Split's older switch still reads: "off" means no glow between hits,
+    /// unless the file also says how much.
+    #[test]
+    fn the_older_quiet_edge_reads_as_resting() {
+        assert_eq!(parse("[split]\nquiet_edge = \"off\"\n").split.look.resting, 0.0);
+        assert_eq!(parse("[split]\nquiet_edge = \"dim\"\n").split.look.resting, 1.0);
+        assert_eq!(parse("[split]\nquiet_edge = \"off\"\nresting = 0.5\n").split.look.resting, 0.5);
+        assert_eq!(parse("[split]\nquiet_edge = \"odd\"\n"), Settings::default());
+    }
+
+    #[test]
+    fn reset_puts_back_one_theme_only() {
+        let mut s = parse("[ripple]\ntail = 2.0\nfade = 2.0\n[band]\nspin = 2.5\n");
+        s.reset_theme("ripple");
+        assert_eq!(s.ripple, Settings::default().ripple);
+        assert_eq!(s.band.spin, 2.5);
+        // Every theme resets its own values and nobody else's.
+        for name in theme::NAMES {
+            let mut s = Settings::default();
+            for other in theme::NAMES {
+                s.look_mut(other).fade = 2.0;
+            }
+            s.reset_theme(name);
+            for other in theme::NAMES {
+                let fade = s.look(other).fade;
+                assert_eq!(fade, if other == name { 1.0 } else { 2.0 }, "reset {name}, {other} has fade {fade}");
+            }
+        }
     }
 
     #[test]
     fn a_value_changes_only_its_own_line() {
         let with_enabled = |text: &str, on: bool| with_value(text, None, "enabled", &on.to_string());
-        let text = "# mine\nenabled = true # note\ntheme = \"split\"\n\n[split]\nquiet_edge = \"off\"\n";
+        let text = "# mine\nenabled = true # note\ntheme = \"split\"\n\n[split]\nresting = 0.0\n";
         let off = with_enabled(text, false);
         assert_eq!(off, text.replace("enabled = true # note", "enabled = false"));
         assert!(!parse(&off).enabled);
@@ -505,36 +877,59 @@ mod tests {
         assert_eq!(with_enabled("fps = 30", false), "fps = 30\nenabled = false\n");
 
         // A key in a table is looked for in that table only.
-        let tables = "tail = 9\n[split]\nquiet_edge = \"dim\"\n\n[ripple]\ntail = 2.0\n";
+        let tables = "tail = 9\n[band]\ntail = 1.5\n\n[ripple]\ntail = 2.0\n";
         let tail = with_value(tables, Some("ripple"), "tail", "0.5");
         assert_eq!(tail, tables.replace("tail = 2.0", "tail = 0.5"));
         let sparks = with_value(tables, Some("ripple"), "sparks", "0.0");
         assert_eq!(sparks, tables.replace("[ripple]\n", "[ripple]\nsparks = 0.0\n"));
-        let missing = with_value("fps = 30\n", Some("split"), "quiet_edge", "\"off\"");
-        assert_eq!(missing, "fps = 30\n\n[split]\nquiet_edge = \"off\"\n");
-        assert_eq!(parse(&missing).split.quiet_edge, QuietEdge::Off);
+        let missing = with_value("fps = 30\n", Some("split"), "resting", "0.0");
+        assert_eq!(missing, "fps = 30\n\n[split]\nresting = 0.0\n");
+        assert_eq!(parse(&missing).split.look.resting, 0.0);
     }
 
     /// Every field the window can change reaches the file and reads back,
     /// judged by the parser rather than by the writer.
     #[test]
     fn every_change_reads_back() {
-        let changed = Settings {
+        let mut changed = Settings {
             enabled: false,
             toggle_key: "Win+Shift+F9".into(),
             start_with_windows: true,
             theme: "ripple".into(),
-            palette: "violet".into(),
+            palette: CUSTOM.into(),
+            custom_base: [1, 2, 3],
+            custom_accent: [0xfe, 0xdc, 0xba],
             album_colors: true,
             fps: 30,
             layout: Layout::Full,
             monitors: vec!["Right \"quoted\"".into(), PRIMARY.into()],
             pause_on_fullscreen: true,
-            split: SplitSettings { quiet_edge: QuietEdge::Off },
-            ripple: RippleSettings { wave_seconds: 1.25, tail: 0.35, sparks: 0.0 },
+            ..Settings::default()
         };
+        for name in theme::NAMES {
+            let look = changed.look_mut(name);
+            look.thickness = 1.75;
+            look.brightness = 0.5;
+            for d in &mut look.drums {
+                d.on = !d.on;
+                d.strength = 0.25;
+            }
+            look.fade = 2.5;
+            look.resting = 1.5;
+        }
+        changed.layered.shimmer = 0.0;
+        changed.ripple.wave_seconds = 1.25;
+        changed.ripple.tail = 0.35;
+        changed.ripple.sparks = 0.0;
+        changed.aurora.flow = 2.75;
+        changed.aurora.folds = 0.5;
+        changed.band.spin = 0.0;
+        changed.band.waves = 1.75;
+        changed.band.corners = 0.9;
+
         let lines = changes(&Settings::default(), &changed);
-        assert_eq!(lines.len(), 14, "{lines:?}");
+        // 12 top level, 10 per theme, 9 theme options.
+        assert_eq!(lines.len(), 12 + 10 * theme::NAMES.len() + 9, "{lines:?}");
         let written = lines.iter().fold(TEMPLATE.to_string(), |t, (table, key, value)| with_value(&t, *table, key, value));
         assert_eq!(parse(&written), changed);
         assert_eq!(written.lines().count(), TEMPLATE.lines().count(), "values were added instead of replaced");
@@ -558,5 +953,6 @@ mod tests {
     #[test]
     fn unknown_keys_are_rejected() {
         assert!(toml::from_str::<File>("colour = \"jade\"\n").is_err());
+        assert!(toml::from_str::<File>("[band]\nspeed = 2\n").is_err());
     }
 }

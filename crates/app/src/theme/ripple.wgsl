@@ -48,7 +48,7 @@ fn light(e: Edge) -> Light {
 
     let reach = e.unit * (0.035 + 0.06 * min(ripple, 1.0));
     let core = exp(-e.d / (0.007 * e.unit));
-    let rest = falloff(e.d, e.unit * 0.05) * (0.12 + 0.1 * energy) + core * (0.2 + 0.1 * energy);
+    let rest = (falloff(e.d, e.unit * 0.05) * (0.12 + 0.1 * energy) + core * (0.2 + 0.1 * energy)) * u.resting;
     let waves = falloff(e.d, reach) * 0.6 * ripple + core * 0.5 * ripple;
     let flash = snare * (0.35 * falloff(e.d, e.unit * 0.07) + 0.4 * core);
 
@@ -59,5 +59,5 @@ fn light(e: Edge) -> Light {
     let sparks = spark * hat * exp(-e.d / (0.0035 * e.unit)) * 0.9;
 
     let tint = u.base.rgb * (rest + waves) + u.accent.rgb * flash + mix(u.accent.rgb, vec3f(1.0), 0.3) * sparks;
-    return Light(tint, rest + waves + flash + sparks);
+    return Light(tint, rest + waves + flash + sparks, PEAK);
 }

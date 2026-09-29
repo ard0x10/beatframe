@@ -13,12 +13,17 @@ What each version brought is on the
 
 - Listens to the sound Windows is playing, from any app: a music player, a
   browser tab, a game. It does not use the microphone.
-- Three themes:
+- Five themes:
   - Layered: every drum lights the whole edge, in layers.
   - Split: kick lights the bottom, snare the sides, hi-hat the top.
   - Ripple: each kick sends a wave up from the bottom middle.
-- Three palettes (jade, ice, violet), or colors taken from the cover of the
-  song playing, when the player shares it with Windows.
+  - Aurora: a slow curtain of light flows along the frame; the drums only nudge it.
+  - Band: a thick band blending the two colors, which the music turns round
+    the frame.
+- Each theme keeps its own thickness, brightness, fade and glow between hits,
+  and its own choice of which drums it answers and how strongly.
+- Three palettes (jade, ice, violet), two colors of your own, or colors taken
+  from the cover of the song playing, when the player shares it with Windows.
 - Clicks go through the light. It never takes the focus and does not show up
   in Alt+Tab.
 - Draws on the main display, or on any other monitors you check in the
@@ -82,17 +87,40 @@ it is saved.
 | `enabled` | `true`, `false` | `true` |
 | `toggle_key` | keys like `"ctrl+alt+shift+l"`, `""` for none | `"ctrl+alt+shift+l"` |
 | `start_with_windows` | `true`, `false` | `false` |
-| `theme` | `layered`, `split`, `ripple` | `layered` |
-| `palette` | `jade`, `ice`, `violet` | `jade` |
+| `theme` | `layered`, `split`, `ripple`, `aurora`, `band` | `layered` |
+| `palette` | `jade`, `ice`, `violet`, `custom` | `jade` |
+| `custom_base`, `custom_accent` | colors like `"#10b8a0"` | jade's two colors |
 | `album_colors` | `true`, `false` | `false` |
 | `fps` | `30`, `40`, `60` | `60` |
 | `layout` | `strips` (along the edges), `full` (one window over the screen) | `strips` |
 | `monitors` | `"primary"` for the main display, other monitors by the names the settings window lists | `["primary"]` |
 | `pause_on_fullscreen` | `true`, `false` | `false` |
-| `[split] quiet_edge` | `dim`, `off` | `dim` |
+
+Each theme has its own table, `[layered]`, `[split]` and so on, with these
+values:
+
+| Setting | Values | Default |
+|---|---|---|
+| `thickness` | `0.5` to `2.0` | `1.0` |
+| `brightness` | `0.2` to `2.0` | `1.0` |
+| `kick`, `snare`, `hat` | `true`, `false` | `true` |
+| `kick_strength`, `snare_strength`, `hat_strength` | `0` to `2` | `1.0` |
+| `fade` | `0.3` to `3.0`, smaller is sharper | `1.0` |
+| `resting` | `0` to `2`, the glow between hits | `1.0` |
+
+And some that only one theme has:
+
+| Setting | Values | Default |
+|---|---|---|
+| `[layered] shimmer` | `0` to `2` | `1.0` |
 | `[ripple] wave_seconds` | `0.3` to `2.0` | `0.8` |
 | `[ripple] tail` | `0.2` to `3.0` | `1.0` |
 | `[ripple] sparks` | `0` to `2` | `1.0` |
+| `[aurora] flow` | `0.2` to `3.0` | `1.0` |
+| `[aurora] folds` | `0.5` to `2.0` | `1.0` |
+| `[band] spin` | `0` to `3`, `0` keeps the colors still | `1.0` |
+| `[band] waves` | `0` to `2`, `0` keeps the inner edge straight | `1.0` |
+| `[band] corners` | `0` (square) to `1` (roundest) | `0.35` |
 
 ## How it works
 

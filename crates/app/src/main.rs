@@ -58,6 +58,15 @@ fn palette(name: &str) -> Palette {
     PALETTES.iter().find(|(n, _)| *n == name).map_or(PALETTES[0].1, |(_, p)| *p)
 }
 
+/// The palette the settings name, or the two colors the user picked.
+fn colors_of(settings: &Settings) -> Palette {
+    if settings.palette != settings::CUSTOM {
+        return palette(&settings.palette);
+    }
+    let rgb = |c: [u8; 3]| [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0, 1.0];
+    Palette { base: rgb(settings.custom_base), accent: rgb(settings.custom_accent) }
+}
+
 /// How long the light takes to move to new colors.
 const FADE: Duration = Duration::from_millis(1500);
 
@@ -152,6 +161,9 @@ struct App {
     display_check: Option<Instant>,
     /// A window of the light changed scale and must be put back in place.
     resettle: bool,
+    /// A slider in the settings window is held; the light's windows are not
+    /// rebuilt for a new thickness until it is let go.
+    holding: bool,
     next_check: Instant,
     next_raise: Instant,
     stop_at: Option<Instant>,
@@ -178,10 +190,12 @@ impl App {
                     o.set_shader(&theme::shader(self.theme.as_ref()));
                 }
             }
-        } else if settings.split != self.settings.split || settings.ripple != self.settings.ripple {
+        } else {
             // A slider being dragged lands here every frame; the shader stays.
             self.theme.configure(&settings);
         }
+        // A new thickness needs deeper or shallower strips, once the slider is let go.
+        relayout |= !self.holding && self.overlay.as_ref().is_some_and(|o| o.reach() != self.theme.reach());
         if !settings.pause_on_fullscreen {
             self.lit.iter_mut().for_each(|l| l.gate = Gate::default());
         }
@@ -314,7 +328,8 @@ impl App {
         let was_recording = w.recording_key();
         let outcome = w.redraw(&self.settings, self.colors.at(Instant::now()));
         let recording = w.recording_key();
-        if outcome.settings != self.settings {
+        let was_holding = std::mem::replace(&mut self.holding, !outcome.settled);
+        if outcome.settings != self.settings || (was_holding && outcome.settled) {
             self.apply(outcome.settings, event_loop);
         }
         if outcome.settled {
@@ -374,7 +389,7 @@ impl App {
     fn retarget(&mut self, now: Instant) {
         let target = match self.album {
             Some(p) if self.settings.album_colors => p,
-            _ => palette(&self.settings.palette),
+            _ => colors_of(&self.settings),
         };
         if target != self.colors.to {
             self.colors = Fade { from: self.colors.at(now), to: target, start: now };
@@ -464,9 +479,12 @@ impl App {
             base: colors.base,
             accent: colors.accent,
             time: (now - self.started).as_secs_f32() % 1000.0,
-            _pad: [0.0; 3],
+            thickness: 1.0,
+            brightness: 1.0,
+            resting: 1.0,
             params: self.theme.params(),
-        });
+        }
+        .with_look(self.theme.look()));
         self.stats.draw_time += started.elapsed();
         self.stats.frames += 1;
 
@@ -732,7 +750,7 @@ fn main() {
         proxy: event_loop.create_proxy(),
         hotkeys,
         toggle_key: None,
-        colors: Fade::still(palette(&settings.palette)),
+        colors: Fade::still(colors_of(&settings)),
         album: None,
         watching_album: false,
         frame: Duration::from_nanos(1_000_000_000 / settings.fps as u64),
@@ -744,6 +762,7 @@ fn main() {
         lit: Vec::new(),
         display_check: None,
         resettle: false,
+        holding: false,
         next_check: now,
         next_raise: now,
         stop_at,

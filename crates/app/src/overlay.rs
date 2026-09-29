@@ -8,6 +8,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::fullscreen::Rect;
+use crate::settings::Look;
 use crate::theme::Params;
 
 /// How the light is laid out on screen.
@@ -28,7 +29,9 @@ pub struct Uniforms {
     pub base: [f32; 4],
     pub accent: [f32; 4],
     pub time: f32,
-    pub _pad: [f32; 3],
+    pub thickness: f32,
+    pub brightness: f32,
+    pub resting: f32,
     pub params: Params,
 }
 
@@ -57,6 +60,8 @@ pub struct Overlay {
     visible: Vec<bool>,
     /// Monitors switched visible that show once their first frame is drawn.
     waiting: Vec<bool>,
+    /// How deep the strips were made, as a share of the shorter side.
+    reach: f32,
 }
 
 /// `reach` is how deep the theme can draw, as a share of the shorter side.
@@ -192,8 +197,14 @@ impl Overlay {
             screens,
             visible: vec![false; monitors.len()],
             waiting: vec![false; monitors.len()],
+            reach,
         };
         overlay
+    }
+
+    /// How deep the windows reach, as they were built.
+    pub fn reach(&self) -> f32 {
+        self.reach
     }
 
     pub fn owns(&self, id: WindowId) -> bool {
@@ -295,6 +306,16 @@ impl Overlay {
             }
         }
         self.waiting.iter_mut().for_each(|w| *w = false);
+    }
+}
+
+impl Uniforms {
+    /// The user's thickness, brightness and resting glow for the theme drawn.
+    pub fn with_look(mut self, look: &Look) -> Self {
+        self.thickness = look.thickness;
+        self.brightness = look.brightness;
+        self.resting = look.resting;
+        self
     }
 }
 

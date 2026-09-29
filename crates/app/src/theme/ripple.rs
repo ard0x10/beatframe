@@ -1,5 +1,5 @@
 use super::{Envelopes, Params, Theme};
-use crate::settings::RippleSettings;
+use crate::settings::{Look, RippleSettings, Settings};
 use crate::signal::Snapshot;
 
 /// Waves the shader draws at once; a ninth pushes out the oldest.
@@ -7,6 +7,7 @@ const MAX_WAVES: usize = 8;
 
 pub struct Ripple {
     env: Envelopes,
+    look: Look,
     /// (age in seconds, strength), oldest first.
     waves: Vec<(f32, f32)>,
     /// Seconds a wave takes from the bottom middle to the top middle.
@@ -20,7 +21,8 @@ impl Ripple {
         Ripple {
             // Kick, snare, hi-hat: seconds to fade to about a third. The kick
             // envelope is unused here; each kick starts a wave instead.
-            env: Envelopes::new([0.22, 0.12, 0.07]),
+            env: Envelopes::new([0.22, 0.12, 0.07], &options.look),
+            look: options.look.clone(),
             waves: Vec::with_capacity(MAX_WAVES),
             travel: options.wave_seconds,
             tail: options.tail,
@@ -34,8 +36,12 @@ impl Theme for Ripple {
         "ripple"
     }
 
-    fn reach(&self) -> f32 {
+    fn depth(&self) -> f32 {
         0.12
+    }
+
+    fn look(&self) -> &Look {
+        &self.look
     }
 
     fn source(&self) -> &'static str {
@@ -66,8 +72,10 @@ impl Theme for Ripple {
         self.waves.clear();
     }
 
-    fn configure(&mut self, settings: &crate::settings::Settings) {
+    fn configure(&mut self, settings: &Settings) {
         let options = &settings.ripple;
+        self.env.set_look(&options.look);
+        self.look = options.look.clone();
         self.travel = options.wave_seconds;
         self.tail = options.tail;
         self.sparks = options.sparks;

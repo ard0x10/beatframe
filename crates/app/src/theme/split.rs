@@ -1,16 +1,16 @@
 use super::{Envelopes, Params, Theme};
-use crate::settings::QuietEdge;
+use crate::settings::{Look, Settings, SplitSettings};
 use crate::signal::Snapshot;
 
 pub struct Split {
     env: Envelopes,
-    quiet: QuietEdge,
+    look: Look,
 }
 
 impl Split {
-    pub fn new(quiet: QuietEdge) -> Self {
+    pub fn new(options: &SplitSettings) -> Self {
         // Kick, snare, hi-hat: seconds to fade to about a third.
-        Split { env: Envelopes::new([0.22, 0.12, 0.07]), quiet }
+        Split { env: Envelopes::new([0.22, 0.12, 0.07], &options.look), look: options.look.clone() }
     }
 }
 
@@ -19,8 +19,12 @@ impl Theme for Split {
         "split"
     }
 
-    fn reach(&self) -> f32 {
+    fn depth(&self) -> f32 {
         0.12
+    }
+
+    fn look(&self) -> &Look {
+        &self.look
     }
 
     fn source(&self) -> &'static str {
@@ -39,18 +43,15 @@ impl Theme for Split {
         self.env.reset();
     }
 
-    fn configure(&mut self, settings: &crate::settings::Settings) {
-        self.quiet = settings.split.quiet_edge;
+    fn configure(&mut self, settings: &Settings) {
+        self.env.set_look(&settings.split.look);
+        self.look = settings.split.look.clone();
     }
 
     fn params(&self) -> Params {
         let [kick, snare, hat] = self.env.drums;
         let mut p = Params::default();
         p[0] = [kick, snare, hat, self.env.energy];
-        p[1][0] = match self.quiet {
-            QuietEdge::Dim => 1.0,
-            QuietEdge::Off => 0.0,
-        };
         p
     }
 }
