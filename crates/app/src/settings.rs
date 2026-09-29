@@ -39,8 +39,8 @@ toggle_key = "ctrl+alt+shift+l"
 # Start when you sign in to Windows
 start_with_windows = false
 
-# How the light moves: layered, split, ripple, aurora or band
-theme = "layered"
+# How the light moves: band, layered, split, ripple or aurora
+theme = "band"
 
 # Colors: jade, ice, violet, or custom for the two colors below
 palette = "jade"
@@ -253,7 +253,7 @@ impl Default for Settings {
             enabled: true,
             toggle_key: DEFAULT_TOGGLE_KEY.into(),
             start_with_windows: false,
-            theme: "layered".into(),
+            theme: "band".into(),
             palette: "jade".into(),
             custom_base: [0x10, 0xb8, 0xa0],
             custom_accent: [0x6c, 0x8c, 0xff],

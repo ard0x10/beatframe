@@ -10,7 +10,7 @@ mod split;
 use crate::settings::{Drum, Look, Settings};
 use crate::signal::Snapshot;
 
-pub const NAMES: [&str; 5] = ["layered", "split", "ripple", "aurora", "band"];
+pub const NAMES: [&str; 5] = ["band", "layered", "split", "ripple", "aurora"];
 
 /// Theme-specific uniform values, read in WGSL as `u.params`.
 pub type Params = [[f32; 4]; 8];

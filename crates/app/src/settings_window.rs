@@ -363,11 +363,11 @@ fn hint(ui: &mut Ui, text: &str) {
 }
 
 const THEMES: [(&str, &str, &str); 5] = [
+    ("band", "Band", "A solid strip round the edge with a soft glow inside, in two colors the music turns round the frame."),
     ("layered", "Layered", "Every drum lights the whole edge, in layers."),
     ("split", "Split", "Kick lights the bottom, snare the sides, hi-hat the top."),
     ("ripple", "Ripple", "Each kick sends a wave up from the bottom middle."),
     ("aurora", "Aurora", "A slow curtain of light flows along the frame. The drums only nudge it."),
-    ("band", "Band", "A thick band blending the two colors, which the music turns round the frame."),
 ];
 
 fn look(ui: &mut Ui, view: &mut View, s: &mut Settings) {

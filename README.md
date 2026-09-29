@@ -14,12 +14,12 @@ What each version brought is on the
 - Listens to the sound Windows is playing, from any app: a music player, a
   browser tab, a game. It does not use the microphone.
 - Five themes:
+  - Band: a solid strip round the edge with a soft glow inside, in two colors
+    the music turns round the frame.
   - Layered: every drum lights the whole edge, in layers.
   - Split: kick lights the bottom, snare the sides, hi-hat the top.
   - Ripple: each kick sends a wave up from the bottom middle.
   - Aurora: a slow curtain of light flows along the frame; the drums only nudge it.
-  - Band: a thick band blending the two colors, which the music turns round
-    the frame.
 - Each theme keeps its own thickness, brightness, fade and glow between hits,
   and its own choice of which drums it answers and how strongly.
 - Three palettes (jade, ice, violet), two colors of your own, or colors taken
@@ -87,7 +87,7 @@ it is saved.
 | `enabled` | `true`, `false` | `true` |
 | `toggle_key` | keys like `"ctrl+alt+shift+l"`, `""` for none | `"ctrl+alt+shift+l"` |
 | `start_with_windows` | `true`, `false` | `false` |
-| `theme` | `layered`, `split`, `ripple`, `aurora`, `band` | `layered` |
+| `theme` | `band`, `layered`, `split`, `ripple`, `aurora` | `band` |
 | `palette` | `jade`, `ice`, `violet`, `custom` | `jade` |
 | `custom_base`, `custom_accent` | colors like `"#10b8a0"` | jade's two colors |
 | `album_colors` | `true`, `false` | `false` |
