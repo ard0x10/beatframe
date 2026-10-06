@@ -1,6 +1,6 @@
 # BeatFrame
 
-![BeatFrame lighting the screen edges while music plays, going through the Layered, Split and Ripple themes](docs/demo.webp)
+![BeatFrame lighting the screen edges while music plays, with the Band theme](docs/demo.webp)
 
 BeatFrame lights the edges of your screen to the drums in whatever your PC
 is playing. It picks the kick, the snare and the hi-hat out of the sound, and
