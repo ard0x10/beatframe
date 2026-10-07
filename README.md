@@ -27,7 +27,9 @@ What each version brought is on the
 - Clicks go through the light. It never takes the focus and does not show up
   in Alt+Tab.
 - Draws on the main display, or on any other monitors you check in the
-  settings window. Each monitor gets its own frame.
+  settings window or the tray menu. Each monitor gets its own frame.
+- Focus mode: while you type or move the mouse the light dims and steps back,
+  and it returns a few seconds after you stop.
 - Can hide itself while a game or a video is full screen, only on the monitor
   it covers.
 - Written in Rust and light on resources: it draws only while sound plays
@@ -77,8 +79,10 @@ Adding `-Remove` to the same command takes the shortcuts away again.
 
 ## Using it
 
-The tray icon has three entries: **On** switches the light on and off,
-**Settings…** opens the settings window, **Quit** closes BeatFrame.
+The tray icon's menu: **On** switches the light on and off, **Settings…**
+opens the settings window, **Quit** closes BeatFrame. With more than one
+monitor connected, the menu also lists the monitors in a section of their own;
+a click lights or darkens each one.
 Starting BeatFrame again while it runs opens the settings window too.
 
 Ctrl+Alt+Shift+L switches the light from any app. The keys can be changed or
@@ -105,6 +109,9 @@ it is saved.
 | `layout` | `strips` (along the edges), `full` (one window over the screen) | `strips` |
 | `monitors` | `"primary"` for the main display, other monitors by the names the settings window lists | `["primary"]` |
 | `pause_on_fullscreen` | `true`, `false` | `false` |
+| `focus_mode` | `true`, `false` | `false` |
+| `focus_after` | `1` to `30`, seconds without input before the light returns | `5.0` |
+| `focus_level` | `0` to `0.8`, how much of the light shows while you work | `0.3` |
 
 Each theme has its own table, `[layered]`, `[split]` and so on, with these
 values:
