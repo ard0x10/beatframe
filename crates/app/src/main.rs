@@ -2,6 +2,7 @@
 
 mod album;
 mod autostart;
+mod focus;
 mod fullscreen;
 mod icon;
 mod instance;
@@ -28,6 +29,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
+use focus::Dimmer;
 use fullscreen::Gate;
 use monitors::Monitor;
 use overlay::{Layout, Overlay, Uniforms};
@@ -166,6 +168,10 @@ struct App {
     holding: bool,
     next_check: Instant,
     next_raise: Instant,
+    /// Focus mode: how much of the light shows, and when the keyboard and
+    /// mouse are next checked.
+    dimmer: Dimmer,
+    next_focus: Instant,
     stop_at: Option<Instant>,
     shared: Arc<Shared>,
     overlay: Option<Overlay>,
@@ -215,6 +221,8 @@ impl App {
             self.set_enabled(self.settings.enabled, event_loop);
         }
         self.show_in_tray();
+        self.next_focus = Instant::now();
+        self.aim_focus();
         self.watch_album();
         self.retarget(Instant::now());
         if self.relight() || relayout {
@@ -328,6 +336,26 @@ impl App {
         if let Some(t) = self.tray.as_mut() {
             t.show(self.enabled, &self.settings.monitors, &self.monitors);
         }
+    }
+
+    /// Points the light at full or at the focus level from how long the
+    /// keyboard and mouse have been still. The settings window keeps it at
+    /// full, since there the user is looking at the light itself.
+    fn aim_focus(&mut self) {
+        let tuning = self.settings_window.as_ref().is_some_and(|w| w.focused());
+        let target = if self.settings.focus_mode && !tuning {
+            let after = Duration::from_secs_f32(self.settings.focus_after);
+            focus::target(focus::idle(), after, self.settings.focus_level)
+        } else {
+            1.0
+        };
+        if self.dimmer.aim(target) && self.shown {
+            self.start_animating();
+        }
+    }
+
+    fn watching_focus(&self) -> bool {
+        self.shown && self.settings.focus_mode
     }
 
     fn open_settings(&mut self, event_loop: &ActiveEventLoop) {
@@ -483,9 +511,13 @@ impl App {
         self.last_tick = now;
         let snapshot = self.shared.snapshot();
         self.theme.update(&snapshot, dt);
+        self.dimmer.update(dt);
 
         let colors = self.colors.at(now);
-        let settled = self.theme.settled() && snapshot.level <= WAKE_LEVEL && !self.colors.running(now);
+        let settled = self.theme.settled()
+            && snapshot.level <= WAKE_LEVEL
+            && !self.colors.running(now)
+            && self.dimmer.settled();
         if settled {
             // The last frame drawn is the resting one, which stays on screen.
             self.theme.reset();
@@ -502,6 +534,8 @@ impl App {
             brightness: 1.0,
             resting: 1.0,
             params: self.theme.params(),
+            shown: self.dimmer.shown,
+            _pad: [0.0; 3],
         }
         .with_look(self.theme.look()));
         self.stats.draw_time += started.elapsed();
@@ -647,6 +681,11 @@ impl ApplicationHandler<UserEvent> for App {
         if watching && now >= self.next_check {
             self.check_fullscreen(now, event_loop);
         }
+        let focusing = self.watching_focus();
+        if focusing && now >= self.next_focus {
+            self.next_focus = now + focus::POLL;
+            self.aim_focus();
+        }
         if self.shown && now >= self.next_raise {
             self.next_raise = now + RAISE;
             if let Some(o) = &self.overlay {
@@ -657,7 +696,8 @@ impl ApplicationHandler<UserEvent> for App {
         let raise = self.shown.then_some(self.next_raise);
         let window = self.settings_window.as_mut().and_then(|w| w.poll(now));
         let displays = self.display_check;
-        let sooner = |wake: Instant| [check, raise, window, displays].into_iter().flatten().fold(wake, Instant::min);
+        let focus = focusing.then_some(self.next_focus);
+        let sooner = |wake: Instant| [check, raise, window, displays, focus].into_iter().flatten().fold(wake, Instant::min);
         if !self.animating {
             let wake = self.stats.since + Duration::from_secs(5);
             let wake = self.stop_at.map_or(wake, |t| t.min(wake));
@@ -789,6 +829,8 @@ fn main() {
         holding: false,
         next_check: now,
         next_raise: now,
+        dimmer: Dimmer::default(),
+        next_focus: now,
         stop_at,
         shared,
         overlay: None,

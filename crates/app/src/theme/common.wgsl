@@ -2,6 +2,7 @@
 // how much light falls on a pixel and in which color; this file turns that into
 // premultiplied output with the same peak cap and dithering for all themes, and
 // applies the user's thickness and brightness the same way for every theme.
+// Focus mode fades the finished light, so even Band's solid strip turns see-through.
 
 struct Uniforms {
     origin: vec2f,
@@ -17,6 +18,9 @@ struct Uniforms {
     resting: f32,
     // Theme-specific values, laid out by each theme.
     params: array<vec4f, 8>,
+    // Share of the finished light that shows, color and coverage alike; focus
+    // mode lowers it while the user works.
+    shown: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -79,5 +83,5 @@ fn fs(@builtin(position) frag: vec4f) -> @location(0) vec4f {
     // Dither keeps the long, faint gradient from banding in 8 bits.
     let n = (hash(frag.xy) - 0.5) / 255.0;
     rgb = clamp(rgb + n, vec3f(0.0), vec3f(a));
-    return vec4f(rgb, a);
+    return vec4f(rgb, a) * u.shown;
 }

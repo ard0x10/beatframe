@@ -66,6 +66,13 @@ monitors = ["primary"]
 # Only the monitor that is covered goes dark.
 pause_on_fullscreen = false
 
+# Focus mode: while you type or move the mouse the light steps back, and it
+# comes back once your hands have been off for focus_after seconds (1 to 30).
+# focus_level is how much of it shows meanwhile, 0 to 0.8.
+focus_mode = false
+focus_after = 5.0
+focus_level = 0.3
+
 # Each theme keeps its own values in its own table. Every theme has these:
 #   thickness        how deep the light reaches into the screen, 0.5 to 2.0
 #   brightness       how bright it gets, 0.2 to 2.0
@@ -240,6 +247,11 @@ pub struct Settings {
     pub layout: Layout,
     pub monitors: Vec<String>,
     pub pause_on_fullscreen: bool,
+    pub focus_mode: bool,
+    /// Seconds without typing or moving the mouse before the light comes back.
+    pub focus_after: f32,
+    /// Share of the light shown while the user works.
+    pub focus_level: f32,
     pub layered: LayeredSettings,
     pub split: SplitSettings,
     pub ripple: RippleSettings,
@@ -262,6 +274,9 @@ impl Default for Settings {
             layout: Layout::Strips,
             monitors: vec![PRIMARY.into()],
             pause_on_fullscreen: false,
+            focus_mode: false,
+            focus_after: 5.0,
+            focus_level: 0.3,
             layered: LayeredSettings { look: Look::default(), shimmer: 1.0 },
             split: SplitSettings { look: Look::default() },
             ripple: RippleSettings { look: Look::default(), wave_seconds: 0.8, tail: 1.0, sparks: 1.0 },
@@ -349,6 +364,9 @@ struct File {
     layout: Option<String>,
     monitors: Option<Vec<String>>,
     pause_on_fullscreen: Option<bool>,
+    focus_mode: Option<bool>,
+    focus_after: Option<f32>,
+    focus_level: Option<f32>,
     layered: Option<ThemeFile>,
     split: Option<ThemeFile>,
     ripple: Option<ThemeFile>,
@@ -555,6 +573,11 @@ fn apply(s: &mut Settings, f: File) {
     if let Some(p) = f.pause_on_fullscreen {
         s.pause_on_fullscreen = p;
     }
+    if let Some(m) = f.focus_mode {
+        s.focus_mode = m;
+    }
+    in_range("", "focus_after", f.focus_after, 1.0, 30.0, &mut s.focus_after);
+    in_range("", "focus_level", f.focus_level, 0.0, 0.8, &mut s.focus_level);
     if let Some(t) = f.layered {
         let l = &mut s.layered;
         t.apply_look("layered", &["shimmer"], &mut l.look);
@@ -592,10 +615,11 @@ fn apply(s: &mut Settings, f: File) {
     }
 }
 
+/// `table` is empty for a top-level key.
 fn in_range(table: &str, key: &str, value: Option<f32>, min: f32, max: f32, into: &mut f32) {
     match value {
         Some(v) if (min..=max).contains(&v) => *into = v,
-        Some(v) => eprintln!("settings: {table} {key} {v} out of range {min} to {max}"),
+        Some(v) => eprintln!("settings: {} {v} out of range {min} to {max}", format!("{table} {key}").trim_start()),
         None => {}
     }
 }
@@ -629,6 +653,9 @@ pub fn changes(old: &Settings, new: &Settings) -> Vec<Change> {
     put(o.layout != n.layout, None, "layout", layout(n.layout));
     put(o.monitors != n.monitors, None, "monitors", list(&n.monitors));
     put(o.pause_on_fullscreen != n.pause_on_fullscreen, None, "pause_on_fullscreen", n.pause_on_fullscreen.to_string());
+    put(o.focus_mode != n.focus_mode, None, "focus_mode", n.focus_mode.to_string());
+    put(o.focus_after != n.focus_after, None, "focus_after", float(n.focus_after));
+    put(o.focus_level != n.focus_level, None, "focus_level", float(n.focus_level));
 
     for ((table, a), (_, b)) in o.looks().into_iter().zip(n.looks()) {
         let t = Some(table);
@@ -804,6 +831,11 @@ mod tests {
         assert_eq!(s, Settings::default());
         let s = parse("pause_on_fullscreen = true\n");
         assert_eq!(s, Settings { pause_on_fullscreen: true, ..Settings::default() });
+        let s = parse("focus_mode = true\nfocus_after = 12.5\nfocus_level = 0\n");
+        let focus = Settings { focus_mode: true, focus_after: 12.5, focus_level: 0.0, ..Settings::default() };
+        assert_eq!(s, focus);
+        let s = parse("focus_after = 0.5\nfocus_level = 0.9\n");
+        assert_eq!(s, Settings::default(), "out of range keeps the defaults");
         let s = parse("[ripple]\nwave_seconds = 1.5\ntail = 9.0\nsparks = 0\n");
         assert_eq!((s.ripple.wave_seconds, s.ripple.tail, s.ripple.sparks), (1.5, 1.0, 0.0));
         let s = parse("palette = \"custom\"\ncustom_base = \"#FF0080\"\ncustom_accent = \"blue\"\n");
@@ -904,6 +936,9 @@ mod tests {
             layout: Layout::Full,
             monitors: vec!["Right \"quoted\"".into(), PRIMARY.into()],
             pause_on_fullscreen: true,
+            focus_mode: true,
+            focus_after: 20.0,
+            focus_level: 0.55,
             ..Settings::default()
         };
         for name in theme::NAMES {
@@ -928,8 +963,8 @@ mod tests {
         changed.band.corners = 0.9;
 
         let lines = changes(&Settings::default(), &changed);
-        // 12 top level, 10 per theme, 9 theme options.
-        assert_eq!(lines.len(), 12 + 10 * theme::NAMES.len() + 9, "{lines:?}");
+        // 15 top level, 10 per theme, 9 theme options.
+        assert_eq!(lines.len(), 15 + 10 * theme::NAMES.len() + 9, "{lines:?}");
         let written = lines.iter().fold(TEMPLATE.to_string(), |t, (table, key, value)| with_value(&t, *table, key, value));
         assert_eq!(parse(&written), changed);
         assert_eq!(written.lines().count(), TEMPLATE.lines().count(), "values were added instead of replaced");

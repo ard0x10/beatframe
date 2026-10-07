@@ -33,6 +33,8 @@ pub struct Uniforms {
     pub brightness: f32,
     pub resting: f32,
     pub params: Params,
+    pub shown: f32,
+    pub _pad: [f32; 3],
 }
 
 struct Pane {

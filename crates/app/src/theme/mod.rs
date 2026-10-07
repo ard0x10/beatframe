@@ -258,6 +258,8 @@ mod tests {
         let common = include_str!("common.wgsl");
         let body = &common[common.find("fn fs(").expect("the fragment shader")..];
         assert!(body.contains("u.thickness") && body.contains("u.brightness"), "{body}");
+        // Focus mode scales what leaves the shader, coverage and color together.
+        assert!(body.contains("return vec4f(rgb, a) * u.shown;"), "{body}");
         for name in NAMES {
             let theme = create(name, &Settings::default()).unwrap();
             assert!(theme.source().contains("u.resting"), "{name} has no resting glow");
@@ -308,5 +310,6 @@ mod tests {
         assert_eq!(offset("thickness"), Some(std::mem::offset_of!(Uniforms, thickness)));
         assert_eq!(offset("brightness"), Some(std::mem::offset_of!(Uniforms, brightness)));
         assert_eq!(offset("resting"), Some(std::mem::offset_of!(Uniforms, resting)));
+        assert_eq!(offset("shown"), Some(std::mem::offset_of!(Uniforms, shown)));
     }
 }

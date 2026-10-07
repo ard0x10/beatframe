@@ -22,6 +22,7 @@ use crate::Palette;
 enum Page {
     Look,
     Behavior,
+    Focus,
 }
 
 /// The key field while it waits for a combination.
@@ -196,6 +197,11 @@ impl SettingsWindow {
 
     /// True while the key field waits for a combination, when the current key
     /// must be let go so the window can see it pressed.
+    /// True while this window has the keyboard focus.
+    pub fn focused(&self) -> bool {
+        self.focused
+    }
+
     pub fn recording_key(&self) -> bool {
         self.key.recording
     }
@@ -332,7 +338,7 @@ fn system_fonts() -> Option<FontDefinitions> {
 fn show(ui: &mut Ui, page: &mut Page, key: &mut KeyField, connected: &[Monitor], view: &mut View, s: &mut Settings) {
     egui::Panel::left("pages").resizable(false).exact_size(140.0).show(ui, |ui| {
         ui.add_space(10.0);
-        for (p, name) in [(Page::Look, "Look"), (Page::Behavior, "Behavior")] {
+        for (p, name) in [(Page::Look, "Look"), (Page::Behavior, "Behavior"), (Page::Focus, "Focus")] {
             let selected = *page == p;
             let text = if selected { RichText::new(name).strong() } else { RichText::new(name) };
             let button = Button::selectable(selected, text).min_size(egui::vec2(ui.available_width(), 32.0));
@@ -348,6 +354,7 @@ fn show(ui: &mut Ui, page: &mut Page, key: &mut KeyField, connected: &[Monitor],
             match page {
                 Page::Look => look(ui, view, s),
                 Page::Behavior => behavior(ui, key, connected, s),
+                Page::Focus => focus(ui, s),
             }
         });
     });
@@ -502,6 +509,8 @@ fn screen(ui: &mut Ui, view: &mut View, s: &Settings) {
         thickness: 1.0,
         brightness: 1.0,
         resting: 1.0,
+        shown: 1.0,
+        _pad: [0.0; 3],
         params,
     }
     .with_look(view.preview.look());
@@ -516,6 +525,26 @@ fn swatch(ui: &mut Ui, name: &str) {
     let painter = ui.painter();
     painter.circle_filled(rect.left_center() + egui::vec2(6.0, 0.0), 5.5, color(p.base));
     painter.circle_filled(rect.left_center() + egui::vec2(18.0, 0.0), 5.5, color(p.accent));
+}
+
+fn focus(ui: &mut Ui, s: &mut Settings) {
+    heading(ui, "Focus mode");
+    ui.checkbox(&mut s.focus_mode, "Step back while I work");
+    hint(ui, "Typing or moving the mouse dims the light. It comes back once you stop.");
+    ui.add_enabled_ui(s.focus_mode, |ui| {
+        egui::Grid::new("focus").num_columns(2).spacing(egui::vec2(12.0, 7.0)).show(ui, |ui| {
+            ui.label("Back after");
+            ui.add(Slider::new(&mut s.focus_after, 1.0..=30.0).step_by(0.5).suffix(" s"));
+            ui.end_row();
+            ui.label("Light while working");
+            let mut percent = (s.focus_level * 100.0).round();
+            if ui.add(Slider::new(&mut percent, 0.0..=80.0).step_by(5.0).suffix(" %")).changed() {
+                s.focus_level = percent / 100.0;
+            }
+            ui.end_row();
+        });
+    });
+    hint(ui, "The light stays bright while this window is in front, so you can see what you change.");
 }
 
 fn behavior(ui: &mut Ui, key: &mut KeyField, connected: &[Monitor], s: &mut Settings) {
