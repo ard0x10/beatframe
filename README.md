@@ -39,6 +39,16 @@ What each version brought is on the
 Windows 10 or 11 and a graphics card with DirectX 12. So far it has been
 tested on Windows 11 only.
 
+## Download
+
+Get `BeatFrame-<version>-windows.zip` from the latest release on the
+[releases page](https://github.com/ard0x10/beatframe/releases), unzip it into
+a folder you keep, and run `beatframe.exe`. It appears in the tray.
+
+The exe is not signed, so the first time Windows may say it protected your
+PC. Choose **More info**, then **Run anyway**. The zip is built from the
+tagged source by GitHub Actions.
+
 ## Build from source
 
 You need Rust 1.95 or newer with the MSVC toolchain (it comes with the Visual

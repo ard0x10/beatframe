@@ -1,0 +1,48 @@
+name: Release
+
+# Builds the Windows zip from the tagged source and attaches it to the release.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the release to build and attach to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Toolchain
+        run: rustup update stable --no-self-update; rustup default stable
+
+      - name: Version matches the tag
+        run: |
+          $meta = cargo metadata --no-deps --format-version 1 --locked | ConvertFrom-Json
+          $version = ($meta.packages | Where-Object name -eq 'app').version
+          if ("v$version" -ne $env:TAG) { throw "Cargo.toml says $version, the tag is $env:TAG" }
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Package and upload
+        run: |
+          $dir = "BeatFrame-$($env:TAG.TrimStart('v'))-windows"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item target/release/beatframe.exe, LICENSE, THIRD-PARTY-LICENSES.txt $dir
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          gh release upload $env:TAG "$dir.zip" --clobber
