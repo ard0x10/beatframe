@@ -214,6 +214,7 @@ impl App {
         if self.settings.enabled != self.enabled {
             self.set_enabled(self.settings.enabled, event_loop);
         }
+        self.show_in_tray();
         self.watch_album();
         self.retarget(Instant::now());
         if self.relight() || relayout {
@@ -262,6 +263,7 @@ impl App {
             if let Some(w) = self.settings_window.as_mut() {
                 w.set_monitors(&self.monitors);
             }
+            self.show_in_tray();
         }
         if self.relight() {
             self.rebuild(event_loop);
@@ -285,9 +287,7 @@ impl App {
 
     fn set_enabled(&mut self, on: bool, event_loop: &ActiveEventLoop) {
         self.enabled = on;
-        if let Some(t) = &self.tray {
-            t.set_enabled(on);
-        }
+        self.show_in_tray();
         // Checked before showing, so switching on over a game does not flash.
         self.lit.iter_mut().for_each(|l| l.gate = Gate::default());
         if self.watching_fullscreen() {
@@ -308,6 +308,25 @@ impl App {
         settings::write(&self.settings_path, &[(None, "enabled", on.to_string())]);
         if let Some(w) = &self.settings_window {
             w.request_redraw();
+        }
+    }
+
+    /// A change made from the tray: recorded in the file, then applied.
+    fn change(&mut self, edit: impl FnOnce(&mut Settings), event_loop: &ActiveEventLoop) {
+        let mut s = self.settings.clone();
+        edit(&mut s);
+        let changes = settings::changes(&self.on_disk, &s);
+        eprintln!("settings: from the tray {changes:?}");
+        settings::write(&self.settings_path, &changes);
+        self.on_disk = s.clone();
+        self.apply(s, event_loop);
+        // A click flips its own check mark even when nothing changed.
+        self.show_in_tray();
+    }
+
+    fn show_in_tray(&mut self) {
+        if let Some(t) = self.tray.as_mut() {
+            t.show(self.enabled, &self.settings.monitors, &self.monitors);
         }
     }
 
@@ -527,6 +546,7 @@ impl ApplicationHandler<UserEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.tray.is_none() {
             self.tray = Some(Tray::new(self.enabled));
+            self.show_in_tray();
         }
         self.watch_album();
         if self.overlay.is_none() {
@@ -578,6 +598,10 @@ impl ApplicationHandler<UserEvent> for App {
             }
             UserEvent::Menu(id) => match self.tray.as_ref().and_then(|t| t.action(&id)) {
                 Some(Action::Toggle) => self.toggle(event_loop),
+                Some(Action::Monitor(m, on)) => {
+                    let connected = self.monitors.clone();
+                    self.change(|s| s.monitors = monitors::choose(&s.monitors, &connected, &m, on), event_loop)
+                }
                 Some(Action::OpenSettings) => self.open_settings(event_loop),
                 Some(Action::Quit) => event_loop.exit(),
                 None => {}
