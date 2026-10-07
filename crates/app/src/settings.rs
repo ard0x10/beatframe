@@ -8,7 +8,7 @@ use crate::monitors::PRIMARY;
 use crate::overlay::Layout;
 use crate::theme;
 
-pub const PALETTE_NAMES: [&str; 3] = ["jade", "ice", "violet"];
+pub const PALETTE_NAMES: [&str; 3] = ["jade", "ember", "violet"];
 
 /// The palette made of the two colors the user picked.
 pub const CUSTOM: &str = "custom";
@@ -42,7 +42,7 @@ start_with_windows = false
 # How the light moves: band, layered, split, ripple or aurora
 theme = "band"
 
-# Colors: jade, ice, violet, or custom for the two colors below
+# Colors: jade, ember, violet, or custom for the two colors below
 palette = "jade"
 
 # The custom colors as #rrggbb: the first for the rim and the kick, the second for the snare and the hi-hat

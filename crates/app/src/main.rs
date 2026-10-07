@@ -50,7 +50,7 @@ const fn rgb(hex: u32) -> [f32; 4] {
 
 const PALETTES: [(&str, Palette); 3] = [
     ("jade", Palette { base: rgb(0x10b8a0), accent: rgb(0x6c8cff) }),
-    ("ice", Palette { base: rgb(0x2f6bff), accent: rgb(0x35e0f0) }),
+    ("ember", Palette { base: rgb(0x0a0505), accent: rgb(0xe80a0a) }),
     ("violet", Palette { base: rgb(0x7a3cff), accent: rgb(0xff4fb0) }),
 ];
 

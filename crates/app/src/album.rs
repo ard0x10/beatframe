@@ -20,7 +20,7 @@ const ACCENT_MIN_SHARE: f32 = 0.15;
 /// Hue shift for the accent when the cover has only one color.
 const ACCENT_SHIFT: f32 = 55.0;
 /// The light is never brighter than jade, the palette chosen by eye, and never
-/// dimmer than the darkest built-in palette color, violet's base.
+/// dimmer than violet's base; ember's near black base would let a cover go dark.
 const BRIGHTEST: u32 = 0x10b8a0;
 const DIMMEST: u32 = 0x7a3cff;
 

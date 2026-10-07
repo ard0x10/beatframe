@@ -22,7 +22,7 @@ What each version brought is on the
   - Aurora: a slow curtain of light flows along the frame; the drums only nudge it.
 - Each theme keeps its own thickness, brightness, fade and glow between hits,
   and its own choice of which drums it answers and how strongly.
-- Three palettes (jade, ice, violet), two colors of your own, or colors taken
+- Three palettes (jade, ember, violet), two colors of your own, or colors taken
   from the cover of the song playing, when the player shares it with Windows.
 - Clicks go through the light. It never takes the focus and does not show up
   in Alt+Tab.
@@ -88,7 +88,7 @@ it is saved.
 | `toggle_key` | keys like `"ctrl+alt+shift+l"`, `""` for none | `"ctrl+alt+shift+l"` |
 | `start_with_windows` | `true`, `false` | `false` |
 | `theme` | `band`, `layered`, `split`, `ripple`, `aurora` | `band` |
-| `palette` | `jade`, `ice`, `violet`, `custom` | `jade` |
+| `palette` | `jade`, `ember`, `violet`, `custom` | `jade` |
 | `custom_base`, `custom_accent` | colors like `"#10b8a0"` | jade's two colors |
 | `album_colors` | `true`, `false` | `false` |
 | `fps` | `30`, `40`, `60` | `60` |
